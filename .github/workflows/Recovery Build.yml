@@ -88,14 +88,20 @@ jobs:
         git config --global user.name "${GITHUB_ACTOR}"
         git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
         
-        # Manually determine the manifest type to avoid empty variables
-        if [[ "${{ inputs.MANIFEST_BRANCH }}" == "15.1" || "${{ inputs.MANIFEST_BRANCH }}" == "14.1" ]]; then
+        # Branch fallback logic: If 15.1 isn't found, 14.1 is the GKI standard.
+        if [[ "${{ inputs.MANIFEST_BRANCH }}" == "15.1" ]]; then
+            # TWRP often uses 'twrp-14.1' as the base for 15/16 GKI devices
+            REAL_BRANCH="twrp-14.1"
+            MANIFEST_TYPE="aosp"
+        elif [[ "${{ inputs.MANIFEST_BRANCH }}" == "14.1" ]]; then
+            REAL_BRANCH="twrp-14.1"
             MANIFEST_TYPE="aosp"
         else
+            REAL_BRANCH="twrp-12.1"
             MANIFEST_TYPE="omni"
         fi
         
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${MANIFEST_TYPE}.git -b twrp-${{ inputs.MANIFEST_BRANCH }}
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${MANIFEST_TYPE}.git -b ${REAL_BRANCH} --no-clone-bundle
           
     - name: Repo Sync
       run: |
