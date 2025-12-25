@@ -102,12 +102,8 @@ jobs:
     - name: Repo Sync
       run: |
         cd workspace
-        # Bismillah - Nuke the specific corrupted files first
-        rm -rf .repo/projects/prebuilts/rust.git
-        rm -rf .repo/project-objects/platform/prebuilts/rust.git
-        
-        # J3: Better than J2, safer than J4
-        repo sync -c -j3 --force-sync --no-clone-bundle --no-tags --optimized-fetch --prune --fail-fast
+        # Bismillah - Use depth=1 to save the runner from crashing
+        repo sync -c -j2 --force-sync --no-clone-bundle --no-tags --current-branch --depth=1 --fail-fast
         
     - name: Clone device tree
       run: |
