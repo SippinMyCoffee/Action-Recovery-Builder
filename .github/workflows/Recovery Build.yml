@@ -54,11 +54,10 @@ jobs:
       with:
         swap-size-gb: 24
 
-    - name: Prepare Environment (Python 3 & Modern Deps)
+    - name: Prepare Environment & Install Tools
       run: |
         sudo apt update
         sudo apt -y upgrade
-        # Verified package list for Ubuntu 22.04
         sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev lib32ncurses-dev \
         x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils \
         xsltproc bc ccache liblz4-tool libncurses-dev libsdl1.2-dev libxml2 lzop \
@@ -66,26 +65,22 @@ jobs:
         ncftp qemu-user-static libtinfo5 python3 python3-pip python3-venv \
         python-is-python3 libssl-dev
         
-        # Manual fix for mkbootimg (Google Repo change workaround)
+        # Setup bin directory once
         mkdir -p ~/bin
+        
+        # Download mkbootimg (Google Repo change workaround)
         curl https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/mkbootimg.py?format=TEXT | base64 --decode > ~/bin/mkbootimg
         chmod a+x ~/bin/mkbootimg
-        sudo ln -sf ~/bin/mkbootimg /usr/bin/mkbootimg
-
-    - name: Check Build Tree
-      uses: haya14busa/action-cond@v1.2.1
-      id: buildtree
-      with:
-        cond: ${{ inputs.MANIFEST_BRANCH == '15.1' || inputs.MANIFEST_BRANCH == '14.1' }}
-        if_true: aosp
-        if_false: omni
-
-    - name: Install repo
-      run: |
-        mkdir ~/bin
+        
+        # Download repo tool
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
+        
+        # Make them globally accessible
+        sudo ln -sf ~/bin/mkbootimg /usr/bin/mkbootimg
         sudo ln -sf ~/bin/repo /usr/bin/repo
+
+    # DELETE the old "Install repo" step from your YAML since we merged it above!
       
     - name: Initialize repo
       run: |
