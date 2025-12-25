@@ -50,22 +50,17 @@ jobs:
       uses: rokibhasansagar/slimhub_actions@main
       # This is the secret weapon to delete everything except the build tools
 
-    - name: Freeing up even more space
-      run: |
-        sudo docker image prune -a -f
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo rm -rf "/usr/local/share/boost"
-        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 24
 
-    - name: Prepare Environment & Install Tools
+    - name: Prepare Environment & Maximize Storage
       run: |
+        # 1. Clear massive unused directories first
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "/usr/local/share/boost" "$AGENT_TOOLSDIRECTORY"
+        
+        # 2. Update and Install essential tools
         sudo apt update
         sudo apt -y upgrade
         sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev lib32ncurses-dev \
@@ -75,22 +70,13 @@ jobs:
         ncftp qemu-user-static libtinfo5 python3 python3-pip python3-venv \
         python-is-python3 libssl-dev
         
-        # Setup bin directory once
+        # 3. Setup bin and tools
         mkdir -p ~/bin
-        
-        # Download mkbootimg (Google Repo change workaround)
         curl https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/mkbootimg.py?format=TEXT | base64 --decode > ~/bin/mkbootimg
-        chmod a+x ~/bin/mkbootimg
-        
-        # Download repo tool
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-        chmod a+x ~/bin/repo
-        
-        # Make them globally accessible
+        chmod a+x ~/bin/mkbootimg ~/bin/repo
         sudo ln -sf ~/bin/mkbootimg /usr/bin/mkbootimg
         sudo ln -sf ~/bin/repo /usr/bin/repo
-
-    # DELETE the old "Install repo" step from your YAML since we merged it above!
       
     - name: Initialize repo
       run: |
