@@ -1,81 +1,119 @@
-name: Recovery Build
+name: Recovery Build - Obsidian Baklava Modern
 
 on:
   workflow_dispatch:
     inputs:
       MANIFEST_BRANCH:
-        description: 'Branch (e.g., 12.1, 11, 9.0)'
+        type: choice
+        description: Manifest Branch
+        options:
+          - 15.1
+          - 14.1
+          - 12.1
         required: true
-        default: '12.1'
+        default: 15.1
       DEVICE_TREE_URL:
-        description: 'Link to your 4-file repo'
+        description: Device Tree URL
         required: true
-        default: 'https://github.com/TeamWin/android_device_asus_I003D'
+        default: https://github.com/SippinMyCoffee/android_device_xiaomi_obsidian
       DEVICE_TREE_BRANCH:
-        description: 'Branch of your tree'
+        description: Device Tree Branch
         required: true
-        default: 'android-12.1'
+        default: twrp
       DEVICE_PATH:
-        description: 'Folder path (e.g., device/brand/name)'
+        description: Path relative to source root
         required: true
-        default: 'device/asus/I003D'
+        default: device/xiaomi/obsidian
       DEVICE_NAME:
-        description: 'Device codename'
+        description: Device Name (e.g., obsidian)
         required: true
-        default: 'I003D'
+        default: obsidian
       BUILD_TARGET:
-        description: 'boot, recovery, or vendor_boot'
+        type: choice
+        description: Target Image
+        options:
+          - vendor_boot
+          - boot
+          - recovery
         required: true
-        default: 'recovery'
+        default: vendor_boot
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Check Out
+      uses: actions/checkout@v4
+            
+    - name: Cleanup
+      uses: rokibhasansagar/slimhub_actions@main
 
-      - name: Prepare Server
-        run: |
-            sudo apt update
-            sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev lib32ncurses-dev x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache lib32readline-dev liblz4-tool libncurses-dev libsdl1.2-dev libwxgtk3.2-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static libtinfo6
+    - name: Set Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 24
 
-      - name: Install Repo Tool
-        run: |
-            mkdir ~/bin
-            curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-            chmod a+x ~/bin/repo
-            sudo ln -sf ~/bin/repo /usr/bin/repo
+    - name: Prepare Environment (Python 3 & Modern Deps)
+      run: |
+        sudo apt update
+        sudo apt -y upgrade
+        sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev lib32ncurses-dev x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache liblz4-tool libncurses-dev libsdl1.2-dev libwxgtk3.2-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static libtinfo5 python3 python3-pip python3-venv python-is-python3 libssl-dev
+        # Crucial: Install the latest Google mkbootimg to support Baklava Header V4
+        pip3 install git+https://android.googlesource.com/platform/system/tools/mkbootimg
 
-      - name: Sync Source Code
-        run: |
-            mkdir workspace
-            cd workspace
-            git config --global user.name "Builder"
-            git config --global user.email "builder@email.com"
-            repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-${{ github.event.inputs.MANIFEST_BRANCH }}
-            repo sync -j$(nproc --all) --force-sync
+    - name: Check Build Tree
+      uses: haya14busa/action-cond@v1.2.1
+      id: buildtree
+      with:
+        cond: ${{ inputs.MANIFEST_BRANCH == '15.1' || inputs.MANIFEST_BRANCH == '14.1' }}
+        if_true: aosp
+        if_false: omni
 
-      - name: Clone Your Device Tree
-        run: |
-            cd workspace
-            git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ./${{ github.event.inputs.DEVICE_PATH }}
+    - name: Install repo
+      run: |
+        mkdir ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/bin/repo
+      
+    - name: Initialize repo
+      run: |
+        mkdir workspace && cd workspace
+        git config --global user.name "${GITHUB_ACTOR}"
+        git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${{ steps.buildtree.outputs.value }}.git -b twrp-${{ inputs.MANIFEST_BRANCH }}
+          
+    - name: Repo Sync
+      run: |
+        repo sync -j$(nproc --all) --force-sync --no-tags --no-clone-bundle
+      working-directory: workspace
 
-      - name: Build Recovery Image
-        run: |
-            cd workspace
-            source build/envsetup.sh
-            export ALLOW_MISSING_DEPENDENCIES=true
-            lunch twrp_${{ github.event.inputs.DEVICE_NAME }}-eng
-            make ${{ github.event.inputs.BUILD_TARGET }}image -j$(nproc --all)
+    - name: Clone device tree
+      run: |
+        git clone ${{ inputs.DEVICE_TREE_URL }} -b ${{ inputs.DEVICE_TREE_BRANCH }} ./${{ inputs.DEVICE_PATH }}
+      working-directory: workspace
 
-      - name: Upload Result
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_TARGET }}.img
-            workspace/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/*.zip
-          name: TWRP-Build-${{ github.event.inputs.DEVICE_NAME }}
-          tag_name: ${{ github.run_id }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Building recovery
+      run: |
+        cd workspace
+        source build/envsetup.sh
+        export ALLOW_MISSING_DEPENDENCIES=true
+        # Use the variable to ensure lunch matches the input
+        lunch omni_${{ inputs.DEVICE_NAME }}-eng
+        make ${{ inputs.BUILD_TARGET }}image -j$(nproc --all)
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          workspace/out/target/product/${{ inputs.DEVICE_NAME }}/${{ inputs.BUILD_TARGET }}*
+        name: TWRP-${{ inputs.DEVICE_NAME }}-Baklava
+        tag_name: ${{ github.run_id }}
+        body: |
+          Device: ${{ inputs.DEVICE_NAME }} (Helio G100 Ultra)
+          Target: ${{ inputs.BUILD_TARGET }}
+          Kernel: 6.12.30 GKI
+          Manifest: ${{ inputs.MANIFEST_BRANCH }} (Android 16 Ready)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
