@@ -19,7 +19,7 @@ on:
       DEVICE_TREE_BRANCH:
         description: Device Tree Branch
         required: true
-        default: twrp
+        default: main
       DEVICE_PATH:
         description: Path relative to source root
         required: true
@@ -58,8 +58,14 @@ jobs:
       run: |
         sudo apt update
         sudo apt -y upgrade
-        sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev lib32ncurses-dev x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc bc ccache liblz4-tool libncurses-dev libsdl1.2-dev libwxgtk3.2-dev libxml2 lzop pngcrush schedtool squashfs-tools imagemagick libbz2-dev lzma ncftp qemu-user-static libtinfo5 python3 python3-pip python3-venv python-is-python3 libssl-dev
-        # Crucial: Install the latest Google mkbootimg to support Baklava Header V4
+        # These are the actual 'Heavy Lifters' for your Helio G100 Ultra:
+        sudo apt -y install gperf gcc-multilib g++-multilib libc6-dev lib32ncurses-dev \
+        x11proto-core-dev libx11-dev tree lib32z1-dev libgl1-mesa-dev libxml2-utils \
+        xsltproc bc ccache liblz4-tool libncurses-dev libsdl1.2-dev libxml2 lzop \
+        pngcrush dogrip schedtool squashfs-tools imagemagick libbz2-dev lzma \
+        ncftp qemu-user-static libtinfo5 python3 python3-pip python3-venv \
+        python-is-python3 libssl-dev
+        # The most important tool for Android 16 Header V4 support:
         pip3 install git+https://android.googlesource.com/platform/system/tools/mkbootimg
 
     - name: Check Build Tree
