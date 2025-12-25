@@ -87,7 +87,15 @@ jobs:
         mkdir workspace && cd workspace
         git config --global user.name "${GITHUB_ACTOR}"
         git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${{ steps.buildtree.outputs.value }}.git -b twrp-${{ inputs.MANIFEST_BRANCH }}
+        
+        # Manually determine the manifest type to avoid empty variables
+        if [[ "${{ inputs.MANIFEST_BRANCH }}" == "15.1" || "${{ inputs.MANIFEST_BRANCH }}" == "14.1" ]]; then
+            MANIFEST_TYPE="aosp"
+        else
+            MANIFEST_TYPE="omni"
+        fi
+        
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${MANIFEST_TYPE}.git -b twrp-${{ inputs.MANIFEST_BRANCH }}
           
     - name: Repo Sync
       run: |
