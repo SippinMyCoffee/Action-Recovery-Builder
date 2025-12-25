@@ -46,8 +46,18 @@ jobs:
     - name: Check Out
       uses: actions/checkout@v4
             
-    - name: Cleanup
+    - name: Cleanup & Maximize Storage
       uses: rokibhasansagar/slimhub_actions@main
+      # This is the secret weapon to delete everything except the build tools
+
+    - name: Freeing up even more space
+      run: |
+        sudo docker image prune -a -f
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
