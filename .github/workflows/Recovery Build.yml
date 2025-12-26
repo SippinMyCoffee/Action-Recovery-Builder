@@ -81,29 +81,14 @@ jobs:
     - name: Initialize repo
       run: |
         mkdir workspace && cd workspace
-        git config --global user.name "${GITHUB_ACTOR}"
-        git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
-        
-        # Branch fallback logic: If 15.1 isn't found, 14.1 is the GKI standard.
-        if [[ "${{ inputs.MANIFEST_BRANCH }}" == "15.1" ]]; then
-            # TWRP often uses 'twrp-14.1' as the base for 15/16 GKI devices
-            REAL_BRANCH="twrp-14.1"
-            MANIFEST_TYPE="aosp"
-        elif [[ "${{ inputs.MANIFEST_BRANCH }}" == "14.1" ]]; then
-            REAL_BRANCH="twrp-14.1"
-            MANIFEST_TYPE="aosp"
-        else
-            REAL_BRANCH="twrp-12.1"
-            MANIFEST_TYPE="omni"
-        fi
-        
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${MANIFEST_TYPE}.git -b ${REAL_BRANCH} --no-clone-bundle
-          
+        # Bismillah - The Bleeding Edge: twrp-15 for Android 16 (Baklava) support
+        repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git -b twrp-15 --depth=1
+      
     - name: Repo Sync
       run: |
         cd workspace
-        # Bismillah - Use depth=1 to save the runner from crashing
-        repo sync -c -j2 --force-sync --no-clone-bundle --no-tags --current-branch --depth=1 --fail-fast
+        # Keeping it at -j2 for safety on this experimental branch
+        repo sync -c -j2 --force-sync --no-clone-bundle --no-tags --current-branch --fail-fast
         
     - name: Clone device tree
       run: |
